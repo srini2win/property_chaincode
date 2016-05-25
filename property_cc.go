@@ -164,7 +164,7 @@ func (c *PropertyChainCode) Invoke(stub *shim.ChaincodeStub, function string, ar
 	} else if function == "register" {
 		return c.Register(stub, args)
 	}
-	return c.responseObject("Query", "Unrecognized function:" + function, "99")
+	return c.responseObject("Invoke", "Unrecognized function:" + function, "99")
 }
 
 // ============================================================================================================================

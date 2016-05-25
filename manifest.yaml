@@ -1,7 +1,7 @@
 ---
 applications:
   - name: property_chaincode
-    command: example-project
+    command: property_chaincode
    env:
      GOVERSION: go1.6
-     GOPACKAGENAME: github.com/example-org/example-project
+     GOPACKAGENAME: github.com/srini2win/property_chaincode

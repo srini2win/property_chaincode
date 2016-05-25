@@ -1,0 +1,7 @@
+---
+applications:
+  - name: property_chaincode
+    command: example-project
+   env:
+     GOVERSION: go1.6
+     GOPACKAGENAME: github.com/example-org/example-project

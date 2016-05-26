@@ -3,7 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+	//"github.com/hyperledger/fabric/core/chaincode/shim"
+	"/tmp/cache/go1.6.2/go/src/github.com/hyperledger/fabric/core/chaincode/shim"
 	"regexp"
 	"encoding/json"
 )

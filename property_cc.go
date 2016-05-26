@@ -19,17 +19,21 @@ type  PropertyChainCode struct {
 
 }
 
+type BeneficialOwner struct {
+	Name    string `json:"name"`
+	Percent string `json:"percent"`
+}
 
 //==============================================================================================================================
 //	Property - Defines the details for a Property object. JSON on right tells it what JSON fields to map to
 //			  that element when reading a JSON object into the struct e.g. JSON make -> Struct Make.
 //==============================================================================================================================
 type Property struct {
-	Folio_ID        string `json:"folio_id"`
-	LegalOwner      string `json:"legalOwner"`
-	BeneficialOwner string `json:"beneficialOwner"`
-	Address         string `json:"address"`
-	Status          int    `json:"status"`
+	Folio_ID         string `json:"folio_id"`
+	LegalOwner       string `json:"legalOwner"`
+	BeneficialOwners []BeneficialOwner `json:"beneficialOwners"`
+	Address          string `json:"address"`
+	Status           int    `json:"status"`
 }
 
 type AllProperties struct {
@@ -114,13 +118,17 @@ func (c *PropertyChainCode) Register(stub *shim.ChaincodeStub, args []string) ([
 	address := "\"Address\":\"" + args[0] + "\", "
 	folio_ID := "\"Folio_ID\":\"" + args[1] + "\", "
 	legalOwner := "\"LegalOwner\":\"" + args[2] + "\", "
-	beneficialOwner := "\"BeneficialOwner\":\"" + args[3] + "\", "
+	//beneficialOwners := "\"BeneficialOwners\":\"" + bo + "\", "
 	status := "\"Status\":0"
 
-	// Concatenates the variables to create the total JSON object
-	property_json := "{" + folio_ID + legalOwner + beneficialOwner + address + status + "}"
+	//fmt.Println("*** Calling Register()- Property args[3]:%s\n", args[3]);
 
-	//fmt.Println("*** Calling Register()- Property JSON:%s\n", property_json);
+	// Concatenates the variables to create the total JSON object
+	//property_json := "{" + folio_ID + legalOwner + beneficialOwners + address + status + "}"
+	property_json := "{" + folio_ID + legalOwner + address + status + "}"
+
+	fmt.Println("*** Calling Register()- Property JSON:%s\n", property_json);
+
 
 	// matched = true if the folio_ID passed fits format of "1/12345"
 	matched, err := regexp.Match("^[0-9]{1}[/.][0-9]{5}$", []byte(args[1]))
@@ -139,6 +147,22 @@ func (c *PropertyChainCode) Register(stub *shim.ChaincodeStub, args []string) ([
 
 	// Convert the JSON defined above into a vehicle object for go
 	err = json.Unmarshal([]byte(property_json), &p)
+
+	// BeneficialOwners formation as input request
+	for i := 3; i < len(args); {
+		/*
+				fmt.Println("################ index:", i)
+				fmt.Println("################ NAME:", args[i])
+				fmt.Println("################ Percent:", args[i + 1])*/
+		if (args[i] != "") &&  (args[i + 1] != "") {
+			var bo BeneficialOwner
+			bo.Name = args[i]
+			bo.Percent = args[i + 1]
+			p.BeneficialOwners = append(p.BeneficialOwners, bo)
+			i = i + 2
+		}
+	}
+	//fmt.Println("*** Calling Register()- Property *****:%s\n", p);
 
 	if err != nil {
 		fmt.Println("UnmarshalError Invalid JSON object..!! ", err)
@@ -202,9 +226,11 @@ func (c *PropertyChainCode) getProperties(stub *shim.ChaincodeStub, searchType s
 			if props.Properties[i].LegalOwner == searchValue {
 				res.Properties = append(res.Properties, props.Properties[i])
 			}
-		case "BeneficialOwner":
-			if props.Properties[i].BeneficialOwner == searchValue {
-				res.Properties = append(res.Properties, props.Properties[i])
+		case "BeneficialOwnerName":
+			for j := range props.Properties[i].BeneficialOwners {
+				if props.Properties[i].BeneficialOwners[j].Name == searchValue {
+					res.Properties = append(res.Properties, props.Properties[i])
+				}
 			}
 		default:
 			fmt.Printf("unrecognized property searchType..!!")
@@ -217,17 +243,53 @@ func (c *PropertyChainCode) getProperties(stub *shim.ChaincodeStub, searchType s
 
 }
 
+func (c *PropertyChainCode) deleteProperty(stub *shim.ChaincodeStub, folidID string) ([]byte, error) {
+	stub.DelState(folidID)
+
+	//get the AllProperties index
+	allPropAsBytes, err := stub.GetState("allProps")
+	if err != nil {
+		return c.responseObject("deleteProperty", "Failed to get all Properties", "99")
+	}
+
+	var props, newProps AllProperties
+	json.Unmarshal(allPropAsBytes, &props)
+
+	for i := range props.Properties {
+		if props.Properties[i].Folio_ID != folidID {
+			newProps.Properties = append(newProps.Properties, props.Properties[i])
+		}
+	}
+
+	jsonAsBytes, _ := json.Marshal(newProps)
+	err = stub.PutState("allProps", jsonAsBytes)
+	if err != nil {
+		fmt.Println("Error while PutState for allProps ", err)
+		return c.responseObject("deleteProperty", "Error while PutState for allProps", "99")
+	}
+
+	return c.responseObject("deleteProperty", "Successfully deleted the property", "0")
+
+}
+
+
 //=================================================================================================================================
 //	Query - Called on PropertyChainCode query. Takes a function name passed and calls that function. Passes the
 //  		initial arguments passed are passed on to the called function.
 //=================================================================================================================================
 func (c *PropertyChainCode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
-	if len(args) != 2 {
-		return c.responseObject("Query", "Incorrect number of arguments passed", "99")
-	}
-
 	if function == "search" {
-		return c.getProperties(stub, args[0], args[1])
+		if len(args) != 2 {
+			return c.responseObject("search", "Incorrect number of arguments passed", "99")
+		} else {
+			return c.getProperties(stub, args[0], args[1])
+		}
+	} else if function == "delete" {
+		if len(args) != 1 {
+			return c.responseObject("delete", "Incorrect number of arguments passed", "99")
+		} else {
+			return c.deleteProperty(stub, args[0])
+		}
 	}
 	return c.responseObject("Query", "Unrecognized function: " + function, "99")
 }

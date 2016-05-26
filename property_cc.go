@@ -33,6 +33,8 @@ type Property struct {
 	LegalOwner       string `json:"legalOwner"`
 	BeneficialOwners []BeneficialOwner `json:"beneficialOwners"`
 	Address          string `json:"address"`
+	Privacy          string `json:"privacy"`
+	Verified         string `json:"verified"`
 	Status           int    `json:"status"`
 }
 
@@ -118,14 +120,15 @@ func (c *PropertyChainCode) Register(stub *shim.ChaincodeStub, args []string) ([
 	address := "\"Address\":\"" + args[0] + "\", "
 	folio_ID := "\"Folio_ID\":\"" + args[1] + "\", "
 	legalOwner := "\"LegalOwner\":\"" + args[2] + "\", "
-	//beneficialOwners := "\"BeneficialOwners\":\"" + bo + "\", "
+	privacy := "\"Privacy\":\"" + args[3] + "\", "
+	verified := "\"Verified\":\"" + args[4] + "\", "
 	status := "\"Status\":0"
 
 	//fmt.Println("*** Calling Register()- Property args[3]:%s\n", args[3]);
 
 	// Concatenates the variables to create the total JSON object
 	//property_json := "{" + folio_ID + legalOwner + beneficialOwners + address + status + "}"
-	property_json := "{" + folio_ID + legalOwner + address + status + "}"
+	property_json := "{" + folio_ID + legalOwner + address + privacy + verified + status + "}"
 
 	fmt.Println("*** Calling Register()- Property JSON:%s\n", property_json);
 
@@ -149,7 +152,7 @@ func (c *PropertyChainCode) Register(stub *shim.ChaincodeStub, args []string) ([
 	err = json.Unmarshal([]byte(property_json), &p)
 
 	// BeneficialOwners formation as input request
-	for i := 3; i < len(args); {
+	for i := 5; i < len(args); {
 		/*
 				fmt.Println("################ index:", i)
 				fmt.Println("################ NAME:", args[i])
@@ -244,7 +247,13 @@ func (c *PropertyChainCode) getProperties(stub *shim.ChaincodeStub, searchType s
 }
 
 func (c *PropertyChainCode) deleteProperty(stub *shim.ChaincodeStub, folidID string) ([]byte, error) {
-	stub.DelState(folidID)
+	fmt.Println("%%%%%%%%%%%%%--deleteProperty-1")
+	/*err1 := stub.DelState(folidID)
+	if err1 != nil {
+		fmt.Println("Failed to delete state for allProps", err1)
+		return c.responseObject("deleteProperty", "Failed to delete state for allProps ", "99")
+	}*/
+	fmt.Println("%%%%%%%%%%%%%--deleteProperty-2")
 
 	//get the AllProperties index
 	allPropAsBytes, err := stub.GetState("allProps")
@@ -254,12 +263,16 @@ func (c *PropertyChainCode) deleteProperty(stub *shim.ChaincodeStub, folidID str
 
 	var props, newProps AllProperties
 	json.Unmarshal(allPropAsBytes, &props)
+	newPropAsBytes := make([]byte, 0)
+	json.Unmarshal(newPropAsBytes, &newProps)
 
+	fmt.Printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-1", len(newProps.Properties))
 	for i := range props.Properties {
 		if props.Properties[i].Folio_ID != folidID {
 			newProps.Properties = append(newProps.Properties, props.Properties[i])
 		}
 	}
+	fmt.Printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-2", len(newProps.Properties))
 
 	jsonAsBytes, _ := json.Marshal(newProps)
 	err = stub.PutState("allProps", jsonAsBytes)
